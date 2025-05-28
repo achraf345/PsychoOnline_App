@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 class ClientForgotPasswordScreen extends StatefulWidget {
@@ -8,16 +9,40 @@ class ClientForgotPasswordScreen extends StatefulWidget {
       _ClientForgotPasswordScreenState();
 }
 
-class _ClientForgotPasswordScreenState
-    extends State<ClientForgotPasswordScreen> {
+class _ClientForgotPasswordScreenState extends State<ClientForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _firstNameController = TextEditingController();
-  final _lastNameController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
+  bool _isLoading = false;
+
+  Future<void> _resetPassword() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: _emailController.text.trim(),
+      );
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Password reset email sent! Check your inbox.")),
+      );
+
+      Navigator.pop(context); // Go back to login screen
+    } on FirebaseAuthException catch (e) {
+      String message = "An error occurred";
+      if (e.code == 'user-not-found') {
+        message = "No user found with this email.";
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +50,7 @@ class _ClientForgotPasswordScreenState
       backgroundColor: const Color(0xFFE3F2FD),
       appBar: AppBar(
         backgroundColor: const Color(0xFF1565C0),
-        elevation: 0,
-        title: const Text("Reset Password"),
+        title: const Text("Forgot Password"),
         centerTitle: true,
       ),
       body: Center(
@@ -37,174 +61,70 @@ class _ClientForgotPasswordScreenState
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
-            color: Colors.white,
             child: Padding(
-              padding: const EdgeInsets.all(24.0),
+              padding: const EdgeInsets.all(24),
               child: Form(
                 key: _formKey,
                 child: Column(
                   children: [
-                    const Icon(
-                      Icons.lock_reset,
-                      size: 80,
-                      color: Color(0xFF1565C0),
-                    ),
+                    const Icon(Icons.email_outlined, size: 80, color: Color(0xFF1565C0)),
                     const SizedBox(height: 16),
                     const Text(
                       "Reset Your Password",
-                      style: TextStyle(
-                        fontSize: 24,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF1565C0),
-                      ),
+                      style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Color(0xFF1565C0)),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 30),
 
-                    // Email
-                    _buildField(
+                    TextFormField(
                       controller: _emailController,
-                      label: "Email",
-                      icon: Icons.email_outlined,
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return "Email is required";
-                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(v)) {
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.email, color: Color(0xFF1565C0)),
+                        labelText: "Email",
+                        filled: true,
+                        fillColor: Colors.grey[100],
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return "Please enter your email";
+                        }
+                        if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                           return "Enter a valid email";
                         }
                         return null;
                       },
                     ),
-                    const SizedBox(height: 16),
-
-                    // First Name
-                    _buildField(
-                      controller: _firstNameController,
-                      label: "First Name",
-                      icon: Icons.person,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? "First name is required" : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Last Name
-                    _buildField(
-                      controller: _lastNameController,
-                      label: "Last Name",
-                      icon: Icons.person_outline,
-                      validator: (v) =>
-                          v == null || v.isEmpty ? "Last name is required" : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // New Password
-                    _buildPasswordField(
-                      controller: _newPasswordController,
-                      label: "New Password",
-                      obscure: _obscureNew,
-                      toggle: () => setState(() => _obscureNew = !_obscureNew),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return "Password required";
-                        if (v.length < 6) return "Min 6 characters";
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Confirm Password
-                    _buildPasswordField(
-                      controller: _confirmPasswordController,
-                      label: "Confirm Password",
-                      obscure: _obscureConfirm,
-                      toggle: () =>
-                          setState(() => _obscureConfirm = !_obscureConfirm),
-                      validator: (v) {
-                        if (v == null || v.isEmpty) return "Confirm your password";
-                        if (v != _newPasswordController.text) return "Passwords do not match";
-                        return null;
-                      },
-                    ),
                     const SizedBox(height: 30),
 
-                    // Submit Button
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        if (_formKey.currentState!.validate()) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Password reset successfully!"),
+                    _isLoading
+                        ? const CircularProgressIndicator()
+                        : ElevatedButton.icon(
+                            onPressed: () {
+                              if (_formKey.currentState!.validate()) {
+                                _resetPassword();
+                              }
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF1565C0),
+                              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
                             ),
-                          );
-                          Navigator.pop(context);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1565C0),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 14, horizontal: 24),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                      ),
-                      icon: const Icon(Icons.check_circle_outline, color: Colors.white),
-                      label: const Text(
-                        "Reset Password",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
-                      ),
-                    ),
+                            icon: const Icon(Icons.send, color: Colors.white),
+                            label: const Text(
+                              "Send Reset Email",
+                              style: TextStyle(color: Colors.white, fontSize: 16),
+                            ),
+                          ),
                   ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    required String? Function(String?) validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      validator: validator,
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required String label,
-    required bool obscure,
-    required VoidCallback toggle,
-    required String? Function(String?) validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      obscureText: obscure,
-      validator: validator,
-      decoration: InputDecoration(
-        prefixIcon: Icon(Icons.lock, color: const Color(0xFF1565C0)),
-        labelText: label,
-        filled: true,
-        fillColor: Colors.grey[100],
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(20),
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-              obscure ? Icons.visibility_off : Icons.visibility,
-              color: const Color(0xFF1565C0)),
-          onPressed: toggle,
         ),
       ),
     );

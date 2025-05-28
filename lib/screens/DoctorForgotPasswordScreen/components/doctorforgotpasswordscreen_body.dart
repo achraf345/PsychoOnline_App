@@ -1,22 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-class DoctorForgotPasswordScreen extends StatefulWidget {
-  const DoctorForgotPasswordScreen({super.key});
+class DoctorForgotPasswordScreenBody extends StatefulWidget {
+  const DoctorForgotPasswordScreenBody({super.key});
 
   @override
-  State<DoctorForgotPasswordScreen> createState() =>
+  State<DoctorForgotPasswordScreenBody> createState() =>
       _DoctorForgotPasswordScreenState();
 }
 
-class _DoctorForgotPasswordScreenState
-    extends State<DoctorForgotPasswordScreen> {
+class _DoctorForgotPasswordScreenState extends State<DoctorForgotPasswordScreenBody> {
   final _formKey = GlobalKey<FormState>();
-  final _matriculeController = TextEditingController();
-  final _nameController = TextEditingController();
-  final _newPasswordController = TextEditingController();
+  final _emailController = TextEditingController();
 
-  bool _obscureNewPassword = true;
+  bool _isLoading = false;
+
+  Future<void> _resetPassword() async {
+    setState(() => _isLoading = true);
+    try {
+      await FirebaseAuth.instance
+          .sendPasswordResetEmail(email: _emailController.text.trim());
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Password reset email sent!',
+            style: GoogleFonts.poppins(),
+          ),
+          backgroundColor: Colors.green,
+        ),
+      );
+      Navigator.pop(context);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: ${e.toString()}', style: GoogleFonts.poppins()),
+          backgroundColor: Colors.red,
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -34,124 +60,62 @@ class _DoctorForgotPasswordScreenState
           child: Column(
             children: [
               const SizedBox(height: 30),
-              Icon(Icons.lock_reset_rounded,
-                  size: 80, color: Colors.green.shade700),
+              Icon(Icons.lock_reset_rounded, size: 80, color: Colors.green.shade700),
               const SizedBox(height: 20),
               Text(
-                'Reset Your Password',
+                'Enter your email to reset password',
                 style: GoogleFonts.poppins(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
                   color: Colors.green.shade900,
                 ),
               ),
               const SizedBox(height: 30),
-
-              // Matricule/ID
-              _buildTextField(
-                controller: _matriculeController,
-                label: 'Matricule/ID',
-                icon: Icons.badge,
-              ),
-              const SizedBox(height: 20),
-
-              // Full Name
-              _buildTextField(
-                controller: _nameController,
-                label: 'Full Name',
-                icon: Icons.person,
-              ),
-              const SizedBox(height: 20),
-
-              // New Password
-              _buildPasswordField(),
-              const SizedBox(height: 30),
-
-              ElevatedButton.icon(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    // TODO: Add your reset-logic here
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                          content: Text('Password reset successfully!',
-                              style: GoogleFonts.poppins())),
-                    );
-                    Navigator.pop(context);
+              TextFormField(
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                validator: (value) {
+                  if (value == null || value.isEmpty || !value.contains('@')) {
+                    return 'Please enter a valid email';
                   }
+                  return null;
                 },
+                decoration: InputDecoration(
+                  prefixIcon: Icon(Icons.email, color: Colors.green.shade700),
+                  labelText: 'Email',
+                  filled: true,
+                  fillColor: Colors.white,
+                  labelStyle: TextStyle(color: Colors.green.shade800),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(30),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 30),
+              ElevatedButton.icon(
+                onPressed: _isLoading
+                    ? null
+                    : () {
+                        if (_formKey.currentState!.validate()) {
+                          _resetPassword();
+                        }
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.green.shade600,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30)),
+                    borderRadius: BorderRadius.circular(30),
+                  ),
                 ),
-                icon: const Icon(Icons.check_circle_outline,
-                    color: Colors.white),
-                label: const Text('Reset Password',
-                    style: TextStyle(color: Colors.white, fontSize: 16)),
+                icon: const Icon(Icons.send, color: Colors.white),
+                label: Text(
+                  _isLoading ? 'Sending...' : 'Send Reset Email',
+                  style: const TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-  }) {
-    return TextFormField(
-      controller: controller,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Please enter $label';
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.green.shade700),
-        labelText: label,
-        filled: true,
-        fillColor: Colors.white,
-        labelStyle: TextStyle(color: Colors.green.shade800),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField() {
-    return TextFormField(
-      controller: _newPasswordController,
-      obscureText: _obscureNewPassword,
-      validator: (value) {
-        if (value == null || value.length < 6) {
-          return 'Password must be at least 6 characters';
-        }
-        return null;
-      },
-      decoration: InputDecoration(
-        prefixIcon:
-            Icon(Icons.lock_outline, color: Colors.green.shade700),
-        labelText: 'New Password',
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
-        suffixIcon: IconButton(
-          icon: Icon(
-            _obscureNewPassword ? Icons.visibility_off : Icons.visibility,
-            color: Colors.green.shade700,
-          ),
-          onPressed: () =>
-              setState(() => _obscureNewPassword = !_obscureNewPassword),
         ),
       ),
     );

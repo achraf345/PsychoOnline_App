@@ -28,7 +28,7 @@ class HomescreenBody extends StatelessWidget {
           children: [
             // App Title
             Text(
-              'PsychOnline',
+              'Psycho line',
               style: GoogleFonts.poppins(
                 fontSize: 38,
                 fontWeight: FontWeight.bold,

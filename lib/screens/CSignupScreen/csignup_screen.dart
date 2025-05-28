@@ -1,5 +1,5 @@
+import 'package:awa/screens/CSignupScreen/components/csignup_screen_body.dart';
 import 'package:flutter/material.dart';
-import 'components/csignup_screen_body.dart';
 
 class CSignupscreen extends StatelessWidget {
   const CSignupscreen({super.key});
@@ -7,7 +7,7 @@ class CSignupscreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
+      body: const SafeArea(
         child: CSignupscreenBody(),
       ),
     );

@@ -43,12 +43,12 @@ class PaymentSuccessScreenBody extends StatelessWidget {
                       ),
                       const SizedBox(height: 20),
                       const Text(
-                        'Payment Successful!',
+                        'Request Successful!',
                         style: TextStyle(
                           fontFamily: 'Georgia',
                           fontSize: 26,
                           fontWeight: FontWeight.bold,
-                          color: Color(0xFF0052D4), // Deep blue
+                          color: Color(0xFF0052D4), 
                         ),
                       ),
                       const SizedBox(height: 10),

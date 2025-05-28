@@ -2,6 +2,7 @@ import 'package:awa/screens/CDashbordScreen/clientdashbord.dart';
 import 'package:awa/screens/CSignupScreen/csignup_screen.dart';
 import 'package:awa/screens/ClientForgotPasswordScreen/components/client_forgot_password_screen_body.dart';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 class CLoginScreenBody extends StatefulWidget {
   const CLoginScreenBody({super.key});
@@ -17,6 +18,7 @@ class _CLoginScreenBodyState extends State<CLoginScreenBody> {
 
   bool _obscurePassword = true;
   bool _formValid = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -33,6 +35,44 @@ class _CLoginScreenBodyState extends State<CLoginScreenBody> {
       setState(() {
         _formValid = isValid;
       });
+    }
+  }
+
+  Future<void> _login() async {
+    setState(() => _isLoading = true);
+
+    try {
+      await FirebaseAuth.instance.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (context) => const Cdashbordscreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      String errorMessage = 'Login failed. Please try again.';
+      if (e.code == 'user-not-found') {
+        errorMessage = 'No user found for that email.';
+      } else if (e.code == 'wrong-password') {
+        errorMessage = 'Wrong password provided.';
+      }
+
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Login Error'),
+          content: Text(errorMessage),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -103,7 +143,6 @@ class _CLoginScreenBodyState extends State<CLoginScreenBody> {
                             });
                           },
                         ),
-                        // 🔐 Forgot Password Link
                         Align(
                           alignment: Alignment.centerRight,
                           child: TextButton(
@@ -128,15 +167,10 @@ class _CLoginScreenBodyState extends State<CLoginScreenBody> {
                         ),
                         const SizedBox(height: 10),
                         ElevatedButton(
-                          onPressed: _formValid
+                          onPressed: _formValid && !_isLoading
                               ? () {
                                   if (_formKey.currentState!.validate()) {
-                                    Navigator.pushReplacement(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (context) =>
-                                              const Cdashbordscreen()),
-                                    );
+                                    _login();
                                   }
                                 }
                               : null,
@@ -148,14 +182,18 @@ class _CLoginScreenBodyState extends State<CLoginScreenBody> {
                               borderRadius: BorderRadius.circular(30),
                             ),
                           ),
-                          child: const Text(
-                            'Login',
-                            style: TextStyle(
-                              fontSize: 16,
-                              color: Color.fromARGB(255, 255, 255, 255),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                          child: _isLoading
+                              ? const CircularProgressIndicator(
+                                  color: Colors.white,
+                                )
+                              : const Text(
+                                  'Login',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
                         ),
                         const SizedBox(height: 20),
                         GestureDetector(

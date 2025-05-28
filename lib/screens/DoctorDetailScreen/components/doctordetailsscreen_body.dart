@@ -1,8 +1,11 @@
+import 'package:awa/screens/PaymentSuccessScreen/paymentsuccessscreen.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:awa/screens/PaymentScreen/components/payementscreen_body.dart';
 
 class DoctorDetailScreen extends StatefulWidget {
+  final String doctorEmail;
   final String doctorName;
   final int doctorAge;
   final int yearsOfExperience;
@@ -10,6 +13,7 @@ class DoctorDetailScreen extends StatefulWidget {
 
   const DoctorDetailScreen({
     super.key,
+    required this.doctorEmail,
     required this.doctorName,
     required this.doctorAge,
     required this.yearsOfExperience,
@@ -23,210 +27,217 @@ class DoctorDetailScreen extends StatefulWidget {
 class _DoctorDetailScreenState extends State<DoctorDetailScreen> {
   final TextEditingController _problemController = TextEditingController();
   DateTime? _selectedDate;
+  bool _isLoading = false;
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color.fromARGB(255, 252, 249, 249),
+      backgroundColor: const Color(0xFFFCF9F9),
       appBar: AppBar(
-        automaticallyImplyLeading: true,
         elevation: 0,
-        flexibleSpace: Container(
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              colors: [Color(0xFF5A8DEE), Color(0xFF906EF5)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
+        centerTitle: true,
+        backgroundColor: const Color(0xFF5A8DEE),
+        title: const Text(
+          'Client Request',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
           ),
         ),
-        title: const Text('Doctor Details', style: TextStyle(fontWeight: FontWeight.bold)),
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 🧑‍⚕️ Doctor Info Card
-            Container(
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFFEDEAFF), Color(0xFFDEE9FF)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blue.withOpacity(0.1),
-                    blurRadius: 15,
-                    offset: const Offset(0, 6),
-                  )
-                ],
-              ),
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF5A8DEE)))
+          : SingleChildScrollView(
               padding: const EdgeInsets.all(20),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.doctorName,
-                      style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Text('👨‍⚕️ Age: ${widget.doctorAge}'),
-                  Text('🏆 Experience: ${widget.yearsOfExperience} years'),
-                  const SizedBox(height: 12),
-                  Text(
-                    widget.description,
-                    style: TextStyle(color: Colors.grey.shade700),
+                  Container(
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFFEDEAFF), Color(0xFFDEE9FF)],
+                      ),
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.blue.withOpacity(0.1),
+                          blurRadius: 15,
+                          offset: const Offset(0, 6),
+                        )
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(widget.doctorName,
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 8),
+                        Text('Age: ${widget.doctorAge}'),
+                        Text('Experience: ${widget.yearsOfExperience} years'),
+                        const SizedBox(height: 12),
+                        Text(widget.description, style: TextStyle(color: Colors.grey.shade700)),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFEEF0FF),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: const Text(
+                      '💳 Full Payment: Multiple sessions & follow-ups\n\n'
+                      '📅 Meet Payment: Single introductory session',
+                      style: TextStyle(fontSize: 15),
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  TextFormField(
+                    controller: _problemController,
+                    maxLines: 3,
+                    decoration: InputDecoration(
+                      labelText: 'Describe your concern',
+                      labelStyle: const TextStyle(color: Colors.deepPurple),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                      filled: true,
+                      fillColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(height: 30),
+                  InkWell(
+                    onTap: _pickDate,
+                    child: InputDecorator(
+                      decoration: InputDecoration(
+                        labelText: 'Meeting Date',
+                        labelStyle: const TextStyle(color: Colors.deepPurple),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(14)),
+                        filled: true,
+                        fillColor: Colors.white,
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        child: Text(
+                          _selectedDate != null
+                              ? DateFormat.yMMMMd().format(_selectedDate!)
+                              : 'Tap to choose a date',
+                          style: TextStyle(
+                            color: _selectedDate != null ? Colors.black : Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 40),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _submit('Full Payment'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: const Color(0xFF5A8DEE),
+                            side: const BorderSide(color: Color(0xFF5A8DEE)),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 3,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Full Payment'),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: ElevatedButton(
+                          onPressed: () => _submit('Meet Payment'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFFE0ECFF),
+                            foregroundColor: const Color(0xFF444C74),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                            elevation: 3,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                          ),
+                          child: const Text('Meet Payment'),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 30),
-
-            // 💬 Payment Explanation Box
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: const Color(0xFFEEF0FF),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: const Text(
-                '💳 Full Payment: Access to complete therapy services including multiple sessions and follow-ups.\n\n'
-                '📅 Meet Payment: Access to a single introductory session with the doctor.',
-                style: TextStyle(fontSize: 14, color: Color(0xFF333366)),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // 🧠 Mental Health Description Field
-            TextFormField(
-              controller: _problemController,
-              decoration: InputDecoration(
-                labelText: 'Describe your mental health concern',
-                labelStyle: const TextStyle(color: Colors.deepPurple),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                filled: true,
-                fillColor: Colors.white,
-              ),
-              maxLines: 3,
-            ),
-
-            const SizedBox(height: 30),
-
-            // 📆 Date Picker
-            InkWell(
-              onTap: _pickDate,
-              child: InputDecorator(
-                decoration: InputDecoration(
-                  labelText: 'Select Meeting Date',
-                  labelStyle: const TextStyle(color: Colors.deepPurple),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  filled: true,
-                  fillColor: Colors.white,
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                  child: Text(
-                    _selectedDate != null
-                        ? DateFormat('yMMMMd').format(_selectedDate!)
-                        : 'Tap to choose a date',
-                    style: TextStyle(
-                      color: _selectedDate != null ? Colors.black : Colors.grey.shade600,
-                      fontSize: 16,
-                    ),
-                  ),
-                ),
-              ),
-            ),
-
-            const SizedBox(height: 40),
-
-            // 🟣 Payment Buttons
-Row(
-  children: [
-    Expanded(
-      child: ElevatedButton(
-        onPressed: () => _submit('Full Payment'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          backgroundColor: Colors.white,
-          foregroundColor: const Color(0xFF5A8DEE), // Text color
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-            side: const BorderSide(color: Color(0xFF5A8DEE)),
-          ),
-          elevation: 3,
-        ),
-        child: const Text('Full Payment', style: TextStyle(fontSize: 16)),
-      ),
-    ),
-    const SizedBox(width: 16),
-    Expanded(
-      child: ElevatedButton(
-        onPressed: () => _submit('Meet Payment'),
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 14),
-          backgroundColor: const Color(0xFFE0ECFF),
-          foregroundColor: const Color(0xFF444C74),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-          elevation: 3,
-        ),
-        child: const Text('Meet Payment', style: TextStyle(fontSize: 16)),
-      ),
-    ),
-  ],
-),
-
-          ],
-        ),
-      ),
     );
   }
 
   void _pickDate() async {
     final picked = await showDatePicker(
       context: context,
+      initialDate: DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime(2100),
-      initialDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: ThemeData.light().copyWith(
-            primaryColor: const Color(0xFF5A8DEE),
-            colorScheme: const ColorScheme.light(primary: Color(0xFF5A8DEE)),
-            buttonTheme: const ButtonThemeData(textTheme: ButtonTextTheme.primary),
-          ),
-          child: child!,
-        );
-      },
+      builder: (ctx, child) => Theme(
+        data: ThemeData.light().copyWith(
+          colorScheme: const ColorScheme.light(primary: Color(0xFF5A8DEE)),
+        ),
+        child: child!,
+      ),
     );
-
-    if (picked != null) {
-      setState(() {
-        _selectedDate = picked;
-      });
-    }
+    if (picked != null) setState(() => _selectedDate = picked);
   }
 
-  void _submit(String paymentType) {
+  Future<void> _submit(String paymentType) async {
     if (_problemController.text.isEmpty || _selectedDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please fill all required fields.')),
-      );
+      ScaffoldMessenger.of(context)
+          .showSnackBar(const SnackBar(content: Text('Please complete all fields')));
       return;
     }
 
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => PaymentScreen(paymentType: paymentType),
-      ),
-    );
+    setState(() => _isLoading = true);
+    try {
+      final client = FirebaseAuth.instance.currentUser;
+      if (client == null) throw Exception('Not signed in');
+
+      final snap = await FirebaseFirestore.instance
+          .collection('clients')
+          .doc(client.uid)
+          .get();
+
+      if (!snap.exists) {
+        throw Exception('Client data not found');
+      }
+
+      final data = snap.data()!;
+
+      await FirebaseFirestore.instance.collection('demands').add({
+        'clientEmail':        client.email,
+        'clientFirstName':    data['firstName'],
+        'clientLastName':     data['lastName'],
+        'doctorEmail':        widget.doctorEmail,
+        'doctorName':         widget.doctorName,
+        'doctorAge':          widget.doctorAge,
+        'doctorExperience':   widget.yearsOfExperience,
+        'doctorDescription':  widget.description,
+        'problemDescription': _problemController.text.trim(),
+        'meetingDate':        _selectedDate,
+        'paymentType':        paymentType,
+        'createdAt':          FieldValue.serverTimestamp(),
+      });
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentSuccessScreen(paymentType: paymentType),
+        ),
+      );
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 }

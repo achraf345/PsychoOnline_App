@@ -1,182 +1,231 @@
-import 'package:awa/screens/PaymentSuccessScreen/paymentsuccessscreen.dart';
+import 'package:awa/screens/PaymentDoneScreen/components/paymentonescreen_body.dart';
 import 'package:flutter/material.dart';
-import 'package:lucide_icons/lucide_icons.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class PaymentScreen extends StatelessWidget {
+class PaymentScreen extends StatefulWidget {
+  final Map<String, dynamic> demandData;
+  final int amount;
   final String paymentType;
 
-  const PaymentScreen({super.key, required this.paymentType});
+  const PaymentScreen({
+    required this.demandData,
+    required this.amount,
+    required this.paymentType,
+    super.key,
+  });
 
   @override
-  Widget build(BuildContext context) {
-    final TextEditingController cardNameController = TextEditingController();
-    final TextEditingController cardNumberController = TextEditingController();
-    final TextEditingController expiryDateController = TextEditingController();
-    final TextEditingController cvvController = TextEditingController();
+  _PaymentScreenState createState() => _PaymentScreenState();
+}
 
-    // Automatically format the expiry date
-    void onExpiryDateChanged(String value) {
-      if (value.length == 2 && !value.contains('/')) {
-        expiryDateController.text = '$value/';
-        expiryDateController.selection = TextSelection.collapsed(offset: expiryDateController.text.length);
-      } else if (value.length == 5 && value[2] != '/') {
-        expiryDateController.text = '${value.substring(0, 2)}/${value.substring(3)}';
-        expiryDateController.selection = TextSelection.collapsed(offset: expiryDateController.text.length);
-      }
+class _PaymentScreenState extends State<PaymentScreen> {
+  final cardNumberController = TextEditingController();
+  final expiryController = TextEditingController();
+  final cvvController = TextEditingController();
+  final cardholderController = TextEditingController();
+  bool isProcessing = false;
+
+  bool _validateFields() {
+    String cardNumber = cardNumberController.text.trim();
+    String expiry = expiryController.text.trim();
+    String cvv = cvvController.text.trim();
+
+    if (cardholderController.text.trim().isEmpty) {
+      _showError("Cardholder name is required.");
+      return false;
     }
 
-    return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(
-        title: const Text('Secure Payment'),
-        centerTitle: true,
-        elevation: 0,
-        backgroundColor: const Color(0xFF6C63FF),
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [Color(0xFF6C63FF), Color(0xFFB69DF8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.payment, color: Colors.white),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      'You selected: $paymentType',
-                      style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 25),
+    if (cardNumber.length != 16 || int.tryParse(cardNumber) == null) {
+      _showError("Card number must be 16 digits.");
+      return false;
+    }
 
-            // CARD FORM
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade50,
-                borderRadius: BorderRadius.circular(18),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.blueGrey.shade100,
-                    blurRadius: 10,
-                    offset: const Offset(2, 6),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildInputField(
-                    controller: cardNameController,
-                    label: 'Cardholder Name',
-                    icon: Icons.person,
-                  ),
-                  const SizedBox(height: 15),
-                  _buildInputField(
-                    controller: cardNumberController,
-                    label: 'Card Number',
-                    icon: Icons.credit_card,
-                    inputType: TextInputType.number,
-                    maxLength: 16,
-                  ),
-                  const SizedBox(height: 15),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputField(
-                          controller: expiryDateController,
-                          label: 'MM/YY',
-                          icon: Icons.calendar_today_rounded,
-                          inputType: TextInputType.number,
-                          maxLength: 5,
-                          onChanged: onExpiryDateChanged,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputField(
-                          controller: cvvController,
-                          label: 'CVV',
-                          icon: LucideIcons.shieldCheck,
-                          inputType: TextInputType.number,
-                          maxLength: 3,
-                          obscureText: true,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 25),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      if (cardNameController.text.isEmpty ||
-                          cardNumberController.text.length != 16 ||
-                          expiryDateController.text.length != 5 ||
-                          cvvController.text.length != 3) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please enter valid card details')),
-                        );
-                        return;
-                      }
+    if (cvv.length != 3 || int.tryParse(cvv) == null) {
+      _showError("CVV must be 3 digits.");
+      return false;
+    }
 
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(builder: (_) => const PaymentSuccessScreen()),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6C63FF),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    icon: const Icon(Icons.lock_outline),
-                    label: const Text('Pay Securely', style: TextStyle(fontSize: 16)),
-                  ),
-                ],
-              ),
-            ),
-          ],
+    if (!RegExp(r'^\d{2}/\d{2}$').hasMatch(expiry)) {
+      _showError("Expiry must be in MM/YY format.");
+      return false;
+    }
+
+    int expMonth = int.parse(expiry.split('/')[0]);
+    int expYear = int.parse(expiry.split('/')[1]) + 2000;
+
+    if (expMonth < 1 || expMonth > 12) {
+      _showError("Invalid expiry month.");
+      return false;
+    }
+
+    DateTime now = DateTime.now();
+    DateTime expiryDate = DateTime(expYear, expMonth + 1);
+
+    if (expiryDate.isBefore(now)) {
+      _showError("Card is expired.");
+      return false;
+    }
+
+    return true;
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
+  void handlePayment() async {
+    if (!_validateFields()) return;
+
+    setState(() => isProcessing = true);
+
+    try {
+      final demandData = widget.demandData;
+
+      // Save to paidDemands
+      await FirebaseFirestore.instance.collection('paidDemands').add({
+        ...demandData,
+        'amountPaid': widget.amount,
+        'paymentType': widget.paymentType,
+        'paymentDate': DateTime.now(),
+        'paymentStatus': 'Completed',
+      });
+
+      // Delete from validatedDemands
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('validatedDemands')
+          .where('doctorEmail', isEqualTo: demandData['doctorEmail'])
+          .where('clientEmail', isEqualTo: demandData['clientEmail'])
+          .where('meetingDate', isEqualTo: demandData['meetingDate'])
+          .get();
+
+      for (var doc in snapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      setState(() => isProcessing = false);
+
+      // Navigate to success screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PaymentDoneScreen(amount: widget.amount),
         ),
+      );
+    } catch (e) {
+      setState(() => isProcessing = false);
+      _showError('Payment Failed: ${e.toString()}');
+    }
+  }
+
+  Widget _buildInputField(
+    IconData icon,
+    String hint,
+    TextEditingController controller,
+    TextInputType keyboardType, {
+    int? maxLength,
+  }) {
+    return TextField(
+      controller: controller,
+      keyboardType: keyboardType,
+      maxLength: maxLength,
+      obscureText: hint == "CVV",
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon),
+        hintText: hint,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        filled: true,
+        fillColor: Colors.white,
+        counterText: "",
       ),
     );
   }
 
-  Widget _buildInputField({
-    required TextEditingController controller,
-    required String label,
-    required IconData icon,
-    TextInputType inputType = TextInputType.text,
-    int? maxLength,
-    bool obscureText = false,
-    Function(String)? onChanged,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      keyboardType: inputType,
-      maxLength: maxLength,
-      onChanged: onChanged,
-      decoration: InputDecoration(
-        counterText: "",
-        prefixIcon: Icon(icon, color: Colors.deepPurple),
-        labelText: label,
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-        focusedBorder: OutlineInputBorder(
-          borderSide: const BorderSide(color: Color(0xFF6C63FF), width: 2),
-          borderRadius: BorderRadius.circular(12),
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.grey[100],
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF3F51B5),
+        elevation: 0,
+        title: const Text("Secure Payment", style: TextStyle(color: Colors.white)),
+        centerTitle: true,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          children: [
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF5C6BC0), Color(0xFF3F51B5)],
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.credit_card, color: Colors.white),
+                  const SizedBox(width: 10),
+                  Text(
+                    "You selected: ${widget.paymentType}",
+                    style: const TextStyle(color: Colors.white, fontSize: 16),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+              ),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  Text(
+                    "Amount to Pay: \$${widget.amount}",
+                    style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 20),
+                  _buildInputField(Icons.person, "Cardholder Name", cardholderController, TextInputType.text),
+                  const SizedBox(height: 15),
+                  _buildInputField(Icons.credit_card, "Card Number", cardNumberController, TextInputType.number, maxLength: 16),
+                  const SizedBox(height: 15),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildInputField(Icons.calendar_today, "MM/YY", expiryController, TextInputType.number, maxLength: 5),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: _buildInputField(Icons.lock, "CVV", cvvController, TextInputType.number, maxLength: 3),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  isProcessing
+                      ? const CircularProgressIndicator()
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3F51B5),
+                            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          onPressed: handlePayment,
+                          child: const Text("Pay Now", style: TextStyle(fontSize: 16, color: Colors.white)),
+                        ),
+                ],
+              ),
+            ),
+          ],
         ),
       ),
     );

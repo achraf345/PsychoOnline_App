@@ -1,4 +1,4 @@
-
+import 'package:awa/screens/DoctorForgotPasswordScreen/components/doctorforgotpasswordscreen_body.dart';
 import 'package:flutter/material.dart';
 
 class DoctorForgotPasswordScreen extends StatelessWidget {
@@ -6,12 +6,6 @@ class DoctorForgotPasswordScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('DoctorForgotPasswordScreen'),
-      ),
-      body: DoctorForgotPasswordScreen(),
-    );
+    return const DoctorForgotPasswordScreenBody();
   }
 }
-    

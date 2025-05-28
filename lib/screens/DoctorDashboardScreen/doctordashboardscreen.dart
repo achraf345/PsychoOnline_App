@@ -1,19 +1,22 @@
-
 import 'package:flutter/material.dart';
 // ignore: unused_import
 import 'components/doctordashboardscreen_body.dart';
 
 class DoctorDashboardScreen extends StatelessWidget {
-  const DoctorDashboardScreen({super.key});
+  final String doctorEmail; // Save doctorEmail properly
+
+  const DoctorDashboardScreen({
+    super.key,
+    required this.doctorEmail,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('DoctorDashboardScreen'),
+        title: const Text('Doctor Dashboard'),
       ),
-      body: DoctorDashboardScreen(),
+      body: DoctorDashboardScreenBody(doctorEmail: doctorEmail), // Pass it
     );
   }
 }
-    

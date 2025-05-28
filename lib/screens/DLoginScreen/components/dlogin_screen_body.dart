@@ -1,6 +1,8 @@
+import 'package:awa/screens/DoctorDashboardScreen/components/doctordashboardscreen_body.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:awa/screens/DoctorDashboardScreen/components/doctordashboardscreen_body.dart';
 import 'package:awa/screens/DSignupScreen/dsignu_screen.dart';
 import 'package:awa/screens/DoctorForgotPasswordScreen/doctorforgotpasswordscreen.dart';
 
@@ -13,12 +15,21 @@ class DloginscreenBody extends StatefulWidget {
 
 class _DloginscreenBodyState extends State<DloginscreenBody> {
   final _formKey = GlobalKey<FormState>();
-  final _matriculeController = TextEditingController();
-  final _fullNameController = TextEditingController();
+  final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
   bool _obscurePassword = true;
   bool _isLoading = false;
+
+  final _auth = FirebaseAuth.instance;
+  final _firestore = FirebaseFirestore.instance;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,6 +50,7 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
       ),
       body: SingleChildScrollView(
         child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [Colors.green.shade200, Colors.white],
@@ -46,7 +58,6 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
               end: Alignment.bottomRight,
             ),
           ),
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
           child: Form(
             key: _formKey,
             child: Column(
@@ -65,36 +76,24 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
                 ),
                 const SizedBox(height: 40),
 
-                // Matricule / ID
+                // Email Field
                 _buildTextField(
-                  controller: _matriculeController,
-                  label: 'Matricule/ID',
-                  icon: Icons.badge,
-                  keyboardType: TextInputType.number,
+                  controller: _emailController,
+                  label: 'Email',
+                  icon: Icons.email_outlined,
+                  keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value == null || value.isEmpty) {
-                      return 'Please enter your Matricule/ID';
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                // Full Name
-                _buildTextField(
-                  controller: _fullNameController,
-                  label: 'Full Name',
-                  icon: Icons.person_outline,
-                  keyboardType: TextInputType.text,
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your full name';
+                      return 'Please enter your email';
+                    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                      return 'Enter a valid email address';
                     }
                     return null;
                   },
                 ),
                 const SizedBox(height: 20),
 
-                // Password
+                // Password Field
                 _buildPasswordField(
                   controller: _passwordController,
                   label: 'Password',
@@ -107,7 +106,6 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
                 ),
                 const SizedBox(height: 10),
 
-                // Forgot Password Link
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
@@ -130,24 +128,10 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
                 ),
                 const SizedBox(height: 10),
 
-                // Login Button
                 _isLoading
                     ? const CircularProgressIndicator()
                     : ElevatedButton.icon(
-                        onPressed: () {
-                          if (_formKey.currentState?.validate() ?? false) {
-                            setState(() => _isLoading = true);
-                            Future.delayed(const Duration(seconds: 1), () {
-                              setState(() => _isLoading = false);
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const DoctorDashboardScreen(),
-                                ),
-                              );
-                            });
-                          }
-                        },
+                        onPressed: _handleLogin,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.green.shade600,
                           foregroundColor: Colors.white,
@@ -163,7 +147,6 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
                       ),
                 const SizedBox(height: 20),
 
-                // Sign Up Link
                 TextButton(
                   onPressed: () {
                     Navigator.push(
@@ -180,6 +163,55 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
             ),
           ),
         ),
+      ),
+    );
+  }
+
+  void _handleLogin() async {
+  if (_formKey.currentState?.validate() ?? false) {
+    setState(() => _isLoading = true);
+
+    try {
+      final userCredential = await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text.trim(),
+      );
+
+      final uid = userCredential.user?.uid;
+      if (uid == null) {
+        throw FirebaseAuthException(
+            code: 'INVALID_UID', message: 'Invalid user ID');
+      }
+
+      final doctorSnapshot =
+          await _firestore.collection('doctors').doc(uid).get();
+
+      if (!doctorSnapshot.exists) {
+        throw Exception('No doctor profile found. Contact support.');
+      }
+
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => DoctorDashboardScreenBody(doctorEmail: _emailController.text.trim()),
+        ),
+      );
+    } on FirebaseAuthException catch (e) {
+      _showError('Authentication Failed: ${e.message}');
+    } catch (e) {
+      _showError(e.toString());
+    } finally {
+      setState(() => _isLoading = false);
+    }
+  }
+}
+
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.red,
       ),
     );
   }
@@ -236,8 +268,7 @@ class _DloginscreenBodyState extends State<DloginscreenBody> {
         obscureText: _obscurePassword,
         validator: validator,
         decoration: InputDecoration(
-          prefixIcon:
-              Icon(Icons.lock_outline, color: Colors.green.shade700),
+          prefixIcon: Icon(Icons.lock_outline, color: Colors.green.shade700),
           labelText: label,
           labelStyle: TextStyle(color: Colors.green.shade700),
           border: OutlineInputBorder(

@@ -1,4 +1,4 @@
-package com.example.awa
+package com.example.psychonline
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'components/dlogin_screen_body.dart';
 
@@ -8,11 +7,7 @@ class Dloginscreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Dloginscreen'),
-      ),
       body: DloginscreenBody(),
     );
   }
 }
-    

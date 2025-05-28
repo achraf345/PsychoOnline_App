@@ -1,3 +1,5 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:awa/screens/CloginScreen/clogin_screen.dart';
 
@@ -34,6 +36,7 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
   bool _obscurePassword = true;
   bool _obscureConfirm = true;
   bool _formValid = false;
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -53,7 +56,7 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
         _birthdayController.text.isNotEmpty &&
         _cityController.text.isNotEmpty &&
         _emailController.text.isNotEmpty &&
-        _passwordController.text.isNotEmpty &&
+        _passwordController.text.length >= 6 &&
         _confirmController.text == _passwordController.text;
     if (_formValid != valid) {
       setState(() => _formValid = valid);
@@ -78,11 +81,7 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
             const SizedBox(height: 16),
             const Text(
               'Client Sign Up',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
-              ),
+              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white),
             ),
             const SizedBox(height: 32),
             Card(
@@ -98,7 +97,7 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
                       const SizedBox(height: 16),
                       _buildField(controller: _lastNameController, label: 'Last Name', icon: Icons.person_outline),
                       const SizedBox(height: 16),
-                      _buildField(controller: _birthdayController, label: 'Birthday (dd/mm/yyyy)', icon: Icons.cake),
+                      _buildDatePickerField(context, _birthdayController, 'Birthday', Icons.cake),
                       const SizedBox(height: 16),
                       _buildField(controller: _cityController, label: 'City', icon: Icons.location_city),
                       const SizedBox(height: 16),
@@ -120,31 +119,21 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
                         toggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
                       ),
                       const SizedBox(height: 24),
-                      ElevatedButton(
-                        onPressed: _formValid
-                            ? () {
-                                if (_formKey.currentState!.validate()) {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(builder: (_) => const CLoginScreen()),
-                                  );
-                                }
-                              }
-                            : null,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: const Color(0xFF1565C0),
-                          minimumSize: const Size(double.infinity, 50),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
-                        ),
-                        child: const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                      ),
+                      _isLoading
+                          ? const CircularProgressIndicator()
+                          : ElevatedButton(
+                              onPressed: _formValid ? _handleSignup : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.white,
+                                foregroundColor: const Color(0xFF1565C0),
+                                minimumSize: const Size(double.infinity, 50),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                              ),
+                              child: const Text('Sign Up', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            ),
                       const SizedBox(height: 16),
                       GestureDetector(
-                        onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(builder: (_) => const CLoginScreen()),
-                        ),
+                        onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CLoginScreen())),
                         child: const Text(
                           'Already have an account? Login',
                           style: TextStyle(
@@ -162,6 +151,40 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
         ),
       ),
     );
+  }
+
+  Future<void> _handleSignup() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() => _isLoading = true);
+      try {
+        UserCredential userCredential = await FirebaseAuth.instance.createUserWithEmailAndPassword(
+          email: _emailController.text.trim(),
+          password: _passwordController.text.trim(),
+        );
+
+        await FirebaseFirestore.instance.collection('clients').doc(userCredential.user!.uid).set({
+          'firstName': _firstNameController.text.trim(),
+          'lastName': _lastNameController.text.trim(),
+          'birthday': _birthdayController.text.trim(),
+          'city': _cityController.text.trim(),
+          'email': _emailController.text.trim(),
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Signup successful!")));
+        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const CLoginScreen()));
+      } on FirebaseAuthException catch (e) {
+        String errorMsg = 'Signup failed';
+        if (e.code == 'email-already-in-use') {
+          errorMsg = 'This email is already in use.';
+        } else if (e.code == 'weak-password') {
+          errorMsg = 'The password is too weak.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(errorMsg)));
+      } finally {
+        setState(() => _isLoading = false);
+      }
+    }
   }
 
   Widget _buildField({
@@ -188,6 +211,43 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
     );
   }
 
+  Widget _buildDatePickerField(
+    BuildContext context,
+    TextEditingController controller,
+    String label,
+    IconData icon,
+  ) {
+    return TextFormField(
+      controller: controller,
+      readOnly: true,
+      onTap: () async {
+        DateTime? pickedDate = await showDatePicker(
+          context: context,
+          initialDate: DateTime(2000),
+          firstDate: DateTime(1900),
+          lastDate: DateTime.now(),
+        );
+
+        if (pickedDate != null) {
+          String formattedDate = "${pickedDate.day.toString().padLeft(2, '0')}/${pickedDate.month.toString().padLeft(2, '0')}/${pickedDate.year}";
+          controller.text = formattedDate;
+        }
+      },
+      validator: (val) => val == null || val.isEmpty ? '$label required' : null,
+      decoration: InputDecoration(
+        prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
+        labelText: label,
+        filled: true,
+        fillColor: Colors.grey[200],
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(20), borderSide: BorderSide.none),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(20),
+          borderSide: const BorderSide(color: Color(0xFF1565C0), width: 2),
+        ),
+      ),
+    );
+  }
+
   Widget _buildPasswordField({
     required TextEditingController controller,
     required String label,
@@ -198,7 +258,12 @@ class _CSignupscreenBodyState extends State<CSignupscreenBody> {
     return TextFormField(
       controller: controller,
       obscureText: obscure,
-      validator: (val) => val == null || val.isEmpty ? '$label required' : null,
+      validator: (val) {
+        if (val == null || val.isEmpty) return '$label required';
+        if (label == 'Password' && val.length < 6) return 'Password must be at least 6 characters';
+        if (label == 'Confirm Password' && val != _passwordController.text) return 'Passwords do not match';
+        return null;
+      },
       decoration: InputDecoration(
         prefixIcon: Icon(icon, color: const Color(0xFF1565C0)),
         labelText: label,

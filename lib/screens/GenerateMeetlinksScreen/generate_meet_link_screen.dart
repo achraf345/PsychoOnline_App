@@ -11,7 +11,7 @@ class Generatemeetlinkscreen extends StatelessWidget {
       appBar: AppBar(
         title: Text('Generatemeetlinkscreen'),
       ),
-      body: GenerateMeetLinkScreen(clientData: {}, client: {},),
+      body: GenerateMeetLinkScreen(client: {},),
     );
   }
 }

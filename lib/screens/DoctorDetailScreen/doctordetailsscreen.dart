@@ -2,6 +2,7 @@ import 'package:awa/screens/DoctorDetailScreen/components/doctordetailsscreen_bo
 import 'package:flutter/material.dart';
 
 class DoctorDetailsScreen extends StatelessWidget {
+  final String doctorEmail; // ✅ Changed to doctorEmail
   final String doctorName;
   final int doctorAge;
   final int yearsOfExperience;
@@ -9,6 +10,7 @@ class DoctorDetailsScreen extends StatelessWidget {
 
   const DoctorDetailsScreen({
     super.key,
+    required this.doctorEmail, // ✅ Changed to doctorEmail
     required this.doctorName,
     required this.doctorAge,
     required this.yearsOfExperience,
@@ -18,6 +20,7 @@ class DoctorDetailsScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DoctorDetailScreen(
+      doctorEmail: doctorEmail, // ✅ Pass doctorEmail to body
       doctorName: doctorName,
       doctorAge: doctorAge,
       yearsOfExperience: yearsOfExperience,
